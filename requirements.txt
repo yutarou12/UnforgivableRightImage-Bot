@@ -1,0 +1,6 @@
+pillow
+discord.py
+python-dotenv
+jishaku
+pytz
+opencv-contrib-python

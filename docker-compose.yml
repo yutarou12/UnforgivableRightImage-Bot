@@ -1,0 +1,20 @@
+services:
+  bot:
+    restart: always
+    build:
+      context: "./"
+      dockerfile: "Dockerfile"
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      TRACEBACK_CHANNEL_ID: ${TRACEBACK_CHANNEL_ID}
+    container_name: "UnforgivableRightImageBOT"
+    volumes:
+      - ./:/app
+    working_dir: "/app"
+    tty: true
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
