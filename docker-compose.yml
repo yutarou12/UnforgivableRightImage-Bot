@@ -7,6 +7,12 @@ services:
     environment:
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       TRACEBACK_CHANNEL_ID: ${TRACEBACK_CHANNEL_ID}
+      POSTGRESQL_USER: ${POSTGRESQL_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_PASSWORD}
+      POSTGRESQL_HOST_NAME: ${POSTGRESQL_HOST_NAME}
+      POSTGRESQL_PORT: ${POSTGRESQL_PORT}
+      POSTGRESQL_DATABASE_NAME: ${POSTGRESQL_DATABASE_NAME}
+      DEBUG: ${DEBUG}
     container_name: "UnforgivableRightImageBOT"
     volumes:
       - ./:/app
@@ -14,7 +20,12 @@ services:
     tty: true
     networks:
       - app-net
+      - network_db
 
 networks:
   app-net:
     driver: bridge
+  network_db:
+    name: network_db
+    driver: bridge
+    external: true
