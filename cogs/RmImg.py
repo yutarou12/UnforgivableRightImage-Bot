@@ -36,11 +36,13 @@ class RmImg(commands.Cog):
         img_rewrite = cv2.bitwise_not(img)  # 白黒反転
         cv2.imwrite(fp, img_rewrite)
 
-    @commands.command(name="削除設定")
-    async def set_remove(self, ctx, value: bool):
-        self.guild_data[ctx.guild.id] = self.guild_data.get(ctx.guild.id, {})
-        self.guild_data[ctx.guild.id]["AutoRemove"] = value
-        await ctx.send(f"画像の自動削除を{'有効' if value else '無効'}にしました。")
+    @app_commands.command(name="削除設定")
+    async def set_remove(self, interaction: discord.Interaction, value: bool):
+        if not interaction.guild.id in self.guild_data:
+            self.guild_data[interaction.guild.id] = {"AutoRemove": False, "ManualRemove": False, "Ratio": 0.85}
+        self.guild_data[interaction.guild.id] = self.guild_data.get(interaction.guild.id, {})
+        self.guild_data[interaction.guild.id]["AutoRemove"] = value
+        return await interaction.response.send_message(f"画像の自動削除を{'有効' if value else '無効'}にしました。")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
