@@ -15,6 +15,7 @@ class RmImg(commands.Cog):
             callback=self.cmd_reverse,
         )
         self.bot.tree.add_command(self.ctx_menu)
+        self.guild_data = {}
 
     # 画像の色の割合を出す関数
     async def white_raito_img(self, fp: str) -> tuple[float, float]:
@@ -35,6 +36,12 @@ class RmImg(commands.Cog):
         img_rewrite = cv2.bitwise_not(img)  # 白黒反転
         cv2.imwrite(fp, img_rewrite)
 
+    @commands.command(name="削除設定")
+    async def set_remove(self, ctx, value: bool):
+        self.guild_data[ctx.guild.id] = self.guild_data.get(ctx.guild.id, {})
+        self.guild_data[ctx.guild.id]["AutoRemove"] = value
+        await ctx.send(f"画像の自動削除を{'有効' if value else '無効'}にしました。")
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot:
@@ -43,7 +50,10 @@ class RmImg(commands.Cog):
         if len(message.attachments) == 0:
             return
 
-        if len(message.attachments) >= 1:
+        if not message.guild.id in self.guild_data:
+            return
+
+        if self.guild_data.get(message.guild.id).get("AutoRemove") is False:
             return
 
         cache_msg_dict = {}
@@ -73,9 +83,13 @@ class RmImg(commands.Cog):
                 cache_msg_dict.pop(message.channel.id)
 
     async def cmd_reverse(self, interaction: discord.Interaction, message: discord.Message):
+
+        if not message.guild.id in self.guild_data or self.guild_data.get(message.guild.id).get("ManualRemove") is False:
+            return await interaction.response.send_message("このサーバーでは画像の手動削除が有効になっていません。", ehemeral=True)
+
         """画像を白黒反転します。"""
         if len(message.attachments) == 0:
-            return await interaction.response.send_message("画像はないよ！")
+            return await interaction.response.send_message("画像はないよ！", ehemeral=True)
 
         for attachment in message.attachments:
             if attachment.content_type.startswith("image"):
