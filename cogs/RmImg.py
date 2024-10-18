@@ -37,12 +37,22 @@ class RmImg(commands.Cog):
         cv2.imwrite(fp, img_rewrite)
 
     @app_commands.command(name="削除設定")
-    async def set_remove(self, interaction: discord.Interaction, value: bool):
+    async def set_remove(self, interaction: discord.Interaction, value: str):
         if not interaction.guild.id in self.guild_data:
             self.guild_data[interaction.guild.id] = {"AutoRemove": False, "ManualRemove": False, "Ratio": 0.85}
-        self.guild_data[interaction.guild.id] = self.guild_data.get(interaction.guild.id, {})
-        self.guild_data[interaction.guild.id]["AutoRemove"] = value
-        return await interaction.response.send_message(f"画像の自動削除を{'有効' if value else '無効'}にしました。")
+        if value == "00":
+            self.guild_data[interaction.guild.id]["AutoRemove"] = False
+            self.guild_data[interaction.guild.id]["ManualRemove"] = False
+        elif value == "10":
+            self.guild_data[interaction.guild.id]["AutoRemove"] = True
+            self.guild_data[interaction.guild.id]["ManualRemove"] = False
+        elif value == "01":
+            self.guild_data[interaction.guild.id]["AutoRemove"] = False
+            self.guild_data[interaction.guild.id]["ManualRemove"] = True
+        elif value == "11":
+            self.guild_data[interaction.guild.id]["AutoRemove"] = True
+            self.guild_data[interaction.guild.id]["ManualRemove"] = True
+        return await interaction.response.send_message(str(self.guild_data[interaction.guild.id]), ephemeral=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
