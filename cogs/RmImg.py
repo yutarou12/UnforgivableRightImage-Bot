@@ -1,10 +1,11 @@
 import os
 
 import cv2
+from datetime import datetime, timedelta
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 
 class RmImg(commands.Cog):
@@ -16,6 +17,7 @@ class RmImg(commands.Cog):
         )
         self.bot.tree.add_command(self.ctx_menu)
         self.guild_data = {}
+        self.cache_msg_delete.start()
 
     # 画像の色の割合を出す関数
     async def white_raito_img(self, fp: str) -> tuple[float, float]:
@@ -126,6 +128,12 @@ class RmImg(commands.Cog):
                     await interaction.response.send_message("画像に白色が大量に含まれているため削除しました。")
 
                 os.remove(f"./tmp/{name}")
+
+    @tasks.loop(seconds=1)
+    async def cache_msg_delete(self):
+        for cache_msg_id, cache_msg_data in self.cache_msg_dict.items():
+            if cache_msg_data.get("CacheTime") < datetime.now():
+                self.cache_msg_dict.pop(cache_msg_id)
 
 
 async def setup(bot):
