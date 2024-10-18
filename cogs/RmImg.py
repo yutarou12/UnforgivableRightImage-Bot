@@ -8,7 +8,7 @@ from discord.ext import commands
 
 
 class RmImg(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(
             name="反転",
