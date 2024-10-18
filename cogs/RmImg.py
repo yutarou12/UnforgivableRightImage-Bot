@@ -15,8 +15,14 @@ class RmImg(commands.Cog):
             name="反転",
             callback=self.cmd_reverse,
         )
+        self.ctx_menu_delete = app_commands.ContextMenu(
+            name="削除",
+            callback=self.image_user_delete,
+        )
         self.bot.tree.add_command(self.ctx_menu)
+        self.bot.tree.add_command(self.ctx_menu_delete)
         self.guild_data = {}
+        self.cache_msg_dict = {}
         self.cache_msg_delete.start()
 
     # 画像の色の割合を出す関数
@@ -70,12 +76,10 @@ class RmImg(commands.Cog):
         if self.guild_data.get(message.guild.id).get("AutoRemove") is False:
             return
 
-        cache_msg_dict = {}
         for attachment in message.attachments:
             if attachment.content_type.startswith("image"):
                 name = f"{message.id}-{message.attachments.index(attachment)}-{attachment.id}.{attachment.filename.split('.')[-1]}"
                 await attachment.save(f"./tmp/{name}")
-                cache_msg_dict[message.channel.id] = cache_msg_dict.get(message.channel.id, []) + [f"./tmp/{name}"]
 
                 white_area_ratio, _ = await self.white_raito_img(fp=f"./tmp/{name}")
 
@@ -128,6 +132,23 @@ class RmImg(commands.Cog):
                     await interaction.response.send_message("画像に白色が大量に含まれているため削除しました。")
 
                 os.remove(f"./tmp/{name}")
+
+    async def image_user_delete(self, interaction: discord.Interaction, message: discord.Message):
+        if len(message.attachments) == 0:
+            return await interaction.response.send_message("画像はないよ！", ephemeral=True)
+        if self.cache_msg_dict.get(message.id):
+            cache_msg_data = self.cache_msg_dict.get(message.id)
+            if cache_msg_data.get("Author") == interaction.user.id:
+                await message.delete()
+                return await interaction.response.send_message("画像を削除しました。", ephemeral=True)
+            else:
+                return await interaction.response.send_message("このメッセージはあなたではありません！", ephemeral=True)
+        elif not message.webhook_id and message.author.id == interaction.user.id:
+            return await interaction.response.send_message("自分で消せませんか！？", ephemeral=True)
+        elif not message.webhook_id and message.author.id != interaction.user.id:
+            return await interaction.response.send_message("このメッセージはあなたではありません！", ephemeral=True)
+        else:
+            return await interaction.response.send_message("このメッセージはもう削除できません！", ephemeral=True)
 
     @tasks.loop(seconds=1)
     async def cache_msg_delete(self):
