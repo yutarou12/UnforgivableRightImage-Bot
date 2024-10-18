@@ -1,5 +1,4 @@
 import os
-
 import cv2
 from datetime import datetime, timedelta
 
@@ -93,21 +92,24 @@ class RmImg(commands.Cog):
 
                     cache_msg = message
                     await message.delete()
-                    await webhook.send(content=cache_msg.content, username=cache_msg.author.display_name, avatar_url=cache_msg.author.display_avatar, file=discord.File(f"./tmp/{name}"))
+                    webhook_msg = await webhook.send(content=cache_msg.content, username=cache_msg.author.display_name, avatar_url=cache_msg.author.display_avatar, file=discord.File(f"./tmp/{name}"), wait=True)
+                    self.cache_msg_dict[webhook_msg.id] = {"Author": cache_msg.author.id, "CacheTime": datetime.now() + timedelta(minutes=30)}
+
                     await cache_msg.channel.send(
-                        f"{message.author.mention} 画像に白色が大量に含まれているため削除しました。")
+                        f"{message.author.mention} 画像に白色が大量に含まれているため削除しました。", delete_after=5)
 
                 os.remove(f"./tmp/{name}")
-                cache_msg_dict.pop(message.channel.id)
 
     async def cmd_reverse(self, interaction: discord.Interaction, message: discord.Message):
-
         if not message.guild.id in self.guild_data or self.guild_data.get(message.guild.id).get("ManualRemove") is False:
-            return await interaction.response.send_message("このサーバーでは画像の手動削除が有効になっていません。", ehemeral=True)
+            return await interaction.response.send_message("このサーバーでは画像の手動削除が有効になっていません。", ephemeral=True)
+
+        if message.author.bot:
+            return await interaction.response.send_message("Botのメッセージは削除できません。", ephemeral=True)
 
         """画像を白黒反転します。"""
         if len(message.attachments) == 0:
-            return await interaction.response.send_message("画像はないよ！", ehemeral=True)
+            return await interaction.response.send_message("画像はないよ！", ephemeral=True)
 
         for attachment in message.attachments:
             if attachment.content_type.startswith("image"):
@@ -127,9 +129,11 @@ class RmImg(commands.Cog):
 
                     cache_msg = message
                     await message.delete()
-                    await webhook.send(content=cache_msg.content, username=cache_msg.author.display_name,
-                                       avatar_url=cache_msg.author.display_avatar, file=discord.File(f"./tmp/{name}"))
-                    await interaction.response.send_message("画像に白色が大量に含まれているため削除しました。")
+                    webhook_msg = await webhook.send(content=cache_msg.content, username=cache_msg.author.display_name,
+                                                     avatar_url=cache_msg.author.display_avatar, file=discord.File(f"./tmp/{name}"), wait=True)
+                    self.cache_msg_dict[webhook_msg.id] = {"Author": cache_msg.author.id, "CacheTime": datetime.now() + timedelta(minutes=30)}
+
+                    await interaction.response.send_message("画像に白色が大量に含まれているため削除しました。", ephemeral=True)
 
                 os.remove(f"./tmp/{name}")
 
