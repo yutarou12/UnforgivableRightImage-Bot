@@ -19,12 +19,9 @@ services:
     working_dir: "/app"
     tty: true
     networks:
-      - app-net
       - network_db
 
 networks:
-  app-net:
-    driver: bridge
   network_db:
     name: network_db
     driver: bridge
