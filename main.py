@@ -7,6 +7,7 @@ from discord.app_commands import AppCommandError
 from discord.ext import commands
 
 import libs.env as env
+from libs.Database import Database
 
 
 extensions_list = [f[:-3] for f in os.listdir("./cogs") if f.endswith(".py")]
@@ -44,6 +45,8 @@ bot = MyBot(
     allowed_mentions=discord.AllowedMentions(replied_user=False, everyone=False),
     help_command=None
 )
+
+bot.db = Database()
 
 if __name__ == '__main__':
     bot.run(env.DISCORD_BOT_TOKEN)
