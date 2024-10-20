@@ -6,9 +6,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from libs.Database import Database
+
 
 class RmImg(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(
             name="反転",
@@ -20,9 +22,9 @@ class RmImg(commands.Cog):
         )
         self.bot.tree.add_command(self.ctx_menu)
         self.bot.tree.add_command(self.ctx_menu_delete)
-        self.guild_data = {}
         self.cache_msg_dict = {}
         self.cache_msg_delete.start()
+        self.db: Database = self.bot.db
 
     # 画像の色の割合を出す関数
     async def white_raito_img(self, fp: str) -> tuple[float, float]:
@@ -44,22 +46,15 @@ class RmImg(commands.Cog):
         cv2.imwrite(fp, img_rewrite)
 
     @app_commands.command(name="削除設定")
-    async def set_remove(self, interaction: discord.Interaction, value: str):
-        if not interaction.guild.id in self.guild_data:
-            self.guild_data[interaction.guild.id] = {"AutoRemove": False, "ManualRemove": False, "Ratio": 0.85}
-        if value == "00":
-            self.guild_data[interaction.guild.id]["AutoRemove"] = False
-            self.guild_data[interaction.guild.id]["ManualRemove"] = False
-        elif value == "10":
-            self.guild_data[interaction.guild.id]["AutoRemove"] = True
-            self.guild_data[interaction.guild.id]["ManualRemove"] = False
-        elif value == "01":
-            self.guild_data[interaction.guild.id]["AutoRemove"] = False
-            self.guild_data[interaction.guild.id]["ManualRemove"] = True
-        elif value == "11":
-            self.guild_data[interaction.guild.id]["AutoRemove"] = True
-            self.guild_data[interaction.guild.id]["ManualRemove"] = True
-        return await interaction.response.send_message(str(self.guild_data[interaction.guild.id]), ephemeral=True)
+    async def set_remove(self, interaction: discord.Interaction, value: str, ratio: float):
+        guild_data = await self.db.get_guild_setting(interaction.guild.id)
+        auto_remove, manual_remove = list(map(bool, list(map(int, list(value)))))
+        if not guild_data:
+            await self.db.add_guild_setting(interaction.guild.id, value, ratio, auto_remove, manual_remove)
+        else:
+            await self.db.update_guild_setting(interaction.guild.id, value, ratio)
+        guild_data = await self.db.get_guild_setting(interaction.guild.id)
+        return await interaction.response.send_message(str(guild_data), ephemeral=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -69,10 +64,11 @@ class RmImg(commands.Cog):
         if len(message.attachments) == 0:
             return
 
-        if not message.guild.id in self.guild_data:
+        guild_data = await self.db.get_guild_setting(message.guild.id)
+        if not guild_data:
             return
 
-        if self.guild_data.get(message.guild.id).get("AutoRemove") is False:
+        if guild_data.get("AutoRemove") is False:
             return
 
         for attachment in message.attachments:
@@ -82,7 +78,7 @@ class RmImg(commands.Cog):
 
                 white_area_ratio, _ = await self.white_raito_img(fp=f"./tmp/{name}")
 
-                if white_area_ratio > 0.85:
+                if white_area_ratio > guild_data.get("Ratio"):
                     self.reverse_img(fp=f"./tmp/{name}")
 
                     if "Right Img Replace <UnforgivableRightImageBot>" not in [w.name for w in await message.channel.webhooks()]:
@@ -101,23 +97,25 @@ class RmImg(commands.Cog):
                 os.remove(f"./tmp/{name}")
 
     async def cmd_reverse(self, interaction: discord.Interaction, message: discord.Message):
-        if not message.guild.id in self.guild_data or self.guild_data.get(message.guild.id).get("ManualRemove") is False:
+        guild_data = await self.db.get_guild_setting(message.guild.id)
+        if not guild_data or guild_data.get("ManualRemove") is False:
             return await interaction.response.send_message("このサーバーでは画像の手動削除が有効になっていません。", ephemeral=True)
 
         if message.author.bot:
             return await interaction.response.send_message("Botのメッセージは削除できません。", ephemeral=True)
 
-        """画像を白黒反転します。"""
+        # 画像がない場合
         if len(message.attachments) == 0:
             return await interaction.response.send_message("画像はないよ！", ephemeral=True)
 
+        # 画像を白黒反転します。
         for attachment in message.attachments:
             if attachment.content_type.startswith("image"):
                 name = f"{message.id}-{message.attachments.index(attachment)}-{attachment.id}.{attachment.filename.split('.')[-1]}"
                 await attachment.save(f"./tmp/{name}")
 
                 white_area_ratio, black_area_ratio = await self.white_raito_img(fp=f"./tmp/{name}")
-                if white_area_ratio > 0.85:
+                if white_area_ratio > guild_data.get("Ratio"):
                     self.reverse_img(fp=f"./tmp/{name}")
 
                     if "Right Img Replace <UnforgivableRightImageBot>" not in [w.name for w in
@@ -140,6 +138,7 @@ class RmImg(commands.Cog):
     async def image_user_delete(self, interaction: discord.Interaction, message: discord.Message):
         if len(message.attachments) == 0:
             return await interaction.response.send_message("画像はないよ！", ephemeral=True)
+
         if self.cache_msg_dict.get(message.id):
             cache_msg_data = self.cache_msg_dict.get(message.id)
             if cache_msg_data.get("Author") == interaction.user.id:

@@ -48,7 +48,7 @@ class ProductionDatabase:
         async with self.pool.acquire() as con:
             data = await con.fetch("SELECT * FROM guild_settings WHERE guild_id = $1", guild_id)
             if data:
-                result = {"AutoRemove": data[0].get("auto_remove"), "ManualRemove": data[0].get("manual_remove"), "Ratio": data[0].get("raito_float")}
+                result = {"AutoRemove": data[0].get("auto_remove"), "ManualRemove": data[0].get("manual_remove"), "Value":data[0].get("settings_int"), "Ratio": data[0].get("raito_float")}
                 return result
             else:
                 return None
