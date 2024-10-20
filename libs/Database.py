@@ -86,7 +86,7 @@ class DebugDatabase(ProductionDatabase):
 
     async def get_guild_setting(self, guild_id: int):
         logging.info(f"getting guild setting: {guild_id}")
-        return None
+        return {"AutoRemove": True, "ManualRemove": True, "Value": "11", "Ratio": 0.85}
 
     async def update_guild_setting(self, guild_id: int, settings_int: str, raito_float: float):
         logging.info(f"updating guild setting: {guild_id}, {settings_int}, {raito_float}")
