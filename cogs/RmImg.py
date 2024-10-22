@@ -52,7 +52,7 @@ class RmImg(commands.Cog):
             raw_guild_data = guild_data
             embed = discord.Embed(title="設定", description=f"・自動置換： {'有効' if guild_data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if guild_data.get('ManualRemove') else '無効'}\n・置換する画像の白の割合：{guild_data.get('Ratio')}")
 
-        view = SettingView(data=raw_guild_data)
+        view = SettingView(db=self.db, data=raw_guild_data)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @commands.Cog.listener()
@@ -160,20 +160,49 @@ class RmImg(commands.Cog):
 
 
 class SettingView(discord.ui.View):
-    def __init__(self, data, *args, **kwargs):
+    def __init__(self, db, data, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.timeout = 120
         self.data = data
+        self.db = db
 
-    @discord.ui.select(options=[SelectOption(label="有効", value="有効"), SelectOption(label="無効", value="無効")],
+    @discord.ui.select(options=[SelectOption(label="有効", description="有効", value="1"), SelectOption(label="無効", description="無効", value="0")],
                        placeholder="自動置換機能", custom_id="SelectOptionAutoRemove")
-    async def select_option_auto_remove(self, button: discord.ui.Button, interaction: discord.Interaction):
-        self.stop()
+    async def select_option_auto_remove(self, interaction: discord.Interaction, select: discord.ui.Select):
+        data = await self.db.get_guild_setting(interaction.guild.id)
+        if not data:
+            await self.db.add_guild_setting(interaction.guild.id,
+                                            settings_int=f"{select.values[0]}{'1' if self.data.get('ManualRemove') else '0'}",
+                                            raito_float=self.data.get("Ratio"),
+                                            auto_remove=bool(int(select.values[0])), manual_remove=self.data.get("ManualRemove"))
+            raw_data = {"AutoRemove": bool(int(select.values[0])), "ManualRemove": self.data.get("ManualRemove"), "Value": f"{select.values[0]}{'1' if self.data.get('ManualRemove') else '0'}", "Ratio": self.data.get("Ratio")}
+        else:
+            await self.db.update_guild_setting(interaction.guild.id,
+                                               settings_int=f"{select.values[0]}{'1' if data.get('ManualRemove') else '0'}",
+                                               raito_float=data.get("Ratio"))
+            raw_data = {"AutoRemove": bool(int(select.values[0])), "ManualRemove": data.get("ManualRemove"), "Value": f"{select.values[0]}{'1' if data.get('ManualRemove') else '0'}", "Ratio": data.get("Ratio")}
 
-    @discord.ui.select(options=[SelectOption(label="有効", value="有効"), SelectOption(label="無効", value="無効")],
+        embed = discord.Embed(title="設定", description=f"・自動置換： {'有効' if raw_data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if raw_data.get('ManualRemove')  else '無効'}\n・置換する画像の白の割合：{raw_data.get('Ratio')}")
+        await interaction.response.edit_message(embed=embed)
+
+    @discord.ui.select(options=[SelectOption(label="有効", description="有効", value="1"), SelectOption(label="無効", description="無効", value="0")],
                        placeholder="手動置換機能", custom_id="SelectOptionManualRemove")
-    async def select_option_manual_remove(self, button: discord.ui.Button, interaction: discord.Interaction):
-        self.stop()
+    async def select_option_manual_remove(self, interaction: discord.Interaction, select: discord.ui.Select):
+        data = await self.db.get_guild_setting(interaction.guild.id)
+        if not data:
+            await self.db.add_guild_setting(interaction.guild.id,
+                                            settings_int=f"{'1' if self.data.get('AutoRemove') else '0'}{select.values[0]}",
+                                            raito_float=self.data.get("Ratio"),
+                                            auto_remove=self.data.get("AutoRemove"),
+                                            manual_remove=bool(int(select.values[0])))
+            raw_data = {"AutoRemove": self.data.get("AutoRemove"), "ManualRemove": bool(int(select.values[0])), "Value": f"{'1' if self.data.get('AutoRemove') else '0'}{select.values[0]}", "Ratio": self.data.get("Ratio")}
+        else:
+            await self.db.update_guild_setting(interaction.guild.id,
+                                               settings_int=f"{'1' if data.get('AutoRemove') else '0'}{select.values[0]}",
+                                               raito_float=self.data.get("Ratio"))
+            raw_data = {"AutoRemove": data.get("AutoRemove"), "ManualRemove": bool(int(select.values[0])), "Value": f"{'1' if data.get('AutoRemove') else '0'}{select.values[0]}", "Ratio": data.get("Ratio")}
+        embed = discord.Embed(title="設定", description=f"・自動置換： {'有効' if raw_data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if raw_data.get('ManualRemove')  else '無効'}\n・置換する画像の白の割合：{raw_data.get('Ratio')}")
+        await interaction.response.edit_message(embed=embed)
 
     @discord.ui.button(label="白色の割合", style=discord.ButtonStyle.primary, custom_id="ratioButton")
     async def button_ratio(self, button: discord.ui.Button, interaction: discord.Interaction):
