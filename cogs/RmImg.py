@@ -3,7 +3,7 @@ import cv2
 from datetime import datetime, timedelta
 
 import discord
-from discord import app_commands
+from discord import app_commands, SelectOption
 from discord.ext import commands, tasks
 
 from libs.Database import Database
@@ -12,16 +12,12 @@ from libs.Database import Database
 class RmImg(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.ctx_menu = app_commands.ContextMenu(
-            name="反転",
-            callback=self.cmd_reverse,
-        )
-        self.ctx_menu_delete = app_commands.ContextMenu(
-            name="削除",
-            callback=self.image_user_delete,
-        )
-        self.bot.tree.add_command(self.ctx_menu)
-        self.bot.tree.add_command(self.ctx_menu_delete)
+        context_menus = [
+            app_commands.ContextMenu(name="反転", callback=self.cmd_reverse),
+            app_commands.ContextMenu(name="削除", callback=self.image_user_delete)
+        ]
+        for menu in context_menus:
+            self.bot.tree.add_command(menu)
         self.cache_msg_dict = {}
         self.cache_msg_delete.start()
         self.db: Database = self.bot.db
@@ -45,16 +41,19 @@ class RmImg(commands.Cog):
         img_rewrite = cv2.bitwise_not(img)  # 白黒反転
         cv2.imwrite(fp, img_rewrite)
 
-    @app_commands.command(name="削除設定")
+    @app_commands.command(name="置換設定")
     async def set_remove(self, interaction: discord.Interaction, value: str, ratio: float):
         guild_data = await self.db.get_guild_setting(interaction.guild.id)
-        auto_remove, manual_remove = list(map(bool, list(map(int, list(value)))))
+
         if not guild_data:
-            await self.db.add_guild_setting(interaction.guild.id, value, ratio, auto_remove, manual_remove)
+            raw_guild_data = {"AutoRemove": False, "ManualRemove": False, "Value": "00", "Ratio": 0.85}
+            embed = discord.Embed(title="設定", description=f"・自動置換： 無効\n・手動置換： 無効\n・置換する画像の白の割合： 0.85")
         else:
-            await self.db.update_guild_setting(interaction.guild.id, value, ratio)
-        guild_data = await self.db.get_guild_setting(interaction.guild.id)
-        return await interaction.response.send_message(str(guild_data), ephemeral=True)
+            raw_guild_data = guild_data
+            embed = discord.Embed(title="設定", description=f"・自動置換： {'有効' if guild_data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if guild_data.get('ManualRemove') else '無効'}\n・置換する画像の白の割合：{guild_data.get('Ratio')}")
+
+        view = SettingView(data=raw_guild_data)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -92,7 +91,7 @@ class RmImg(commands.Cog):
                     self.cache_msg_dict[webhook_msg.id] = {"Author": cache_msg.author.id, "CacheTime": datetime.now() + timedelta(minutes=30)}
 
                     await cache_msg.channel.send(
-                        f"{message.author.mention} 画像に白色が大量に含まれているため削除しました。", delete_after=5)
+                        f"{message.author.mention} 画像に白色が大量に含まれているため置き換えました。", delete_after=5)
 
                 os.remove(f"./tmp/{name}")
 
@@ -158,6 +157,42 @@ class RmImg(commands.Cog):
         for cache_msg_id, cache_msg_data in self.cache_msg_dict.items():
             if cache_msg_data.get("CacheTime") < datetime.now():
                 self.cache_msg_dict.pop(cache_msg_id)
+
+
+class SettingView(discord.ui.View):
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timeout = 120
+        self.data = data
+
+    @discord.ui.select(options=[SelectOption(label="有効", value="有効"), SelectOption(label="無効", value="無効")],
+                       placeholder="自動置換機能", custom_id="SelectOptionAutoRemove")
+    async def select_option_auto_remove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        self.stop()
+
+    @discord.ui.select(options=[SelectOption(label="有効", value="有効"), SelectOption(label="無効", value="無効")],
+                       placeholder="手動置換機能", custom_id="SelectOptionManualRemove")
+    async def select_option_manual_remove(self, button: discord.ui.Button, interaction: discord.Interaction):
+        self.stop()
+
+    @discord.ui.button(label="白色の割合", style=discord.ButtonStyle.primary, custom_id="ratioButton")
+    async def button_ratio(self, button: discord.ui.Button, interaction: discord.Interaction):
+        modal = ModalRatio(data=self.data)
+        await interaction.response.send_modal(modal=modal)
+        self.stop()
+
+
+class ModalRatio(discord.ui.Modal, title='白色の割合'):
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timeout = 120
+        self.data = data
+
+    name = discord.ui.TextInput(label='割合(0.00 ~ 1.00)')
+    answer = discord.ui.TextInput(label='Answer', style=discord.TextStyle.short)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(f'Thanks for your response, {self.name}!', ephemeral=True)
 
 
 async def setup(bot):
