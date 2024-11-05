@@ -222,7 +222,7 @@ class ModalRatio(discord.ui.Modal, title='白色の割合'):
     answer = discord.ui.TextInput(label='Answer', style=discord.TextStyle.short)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.edit_message(f'Thanks for your response, {self.name}!', ephemeral=True)
+        await interaction.response.edit_message(f'Thanks for your response, {self.name}!')
 
 
 async def setup(bot):
