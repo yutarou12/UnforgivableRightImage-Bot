@@ -208,6 +208,7 @@ class SettingView(discord.ui.View):
     async def button_ratio(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = ModalRatio(data=self.data)
         await interaction.response.send_modal(modal=modal)
+        await interaction.response.send_modal(modal)
         self.stop()
 
 
