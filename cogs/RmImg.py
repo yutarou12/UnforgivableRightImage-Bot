@@ -205,7 +205,7 @@ class SettingView(discord.ui.View):
         await interaction.response.edit_message(embed=embed)
 
     @discord.ui.button(label="白色の割合", style=discord.ButtonStyle.primary, custom_id="ratioButton")
-    async def button_ratio(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def button_ratio(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = ModalRatio(data=self.data)
         await interaction.response.send_modal(modal=modal)
         self.stop()
