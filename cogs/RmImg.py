@@ -182,8 +182,6 @@ class SettingView(discord.ui.View):
                                                raito_float=data.get("Ratio"))
             raw_data = {"AutoRemove": bool(int(select.values[0])), "ManualRemove": data.get("ManualRemove"), "Value": f"{select.values[0]}{'1' if data.get('ManualRemove') else '0'}", "Ratio": data.get("Ratio")}
 
-        self.data = raw_data
-
         embed = discord.Embed(title="設定", description=f"・自動置換： {'有効' if raw_data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if raw_data.get('ManualRemove')  else '無効'}\n・置換する画像の白の割合：{raw_data.get('Ratio')}")
         await interaction.response.edit_message(embed=embed)
 
@@ -203,45 +201,28 @@ class SettingView(discord.ui.View):
                                                settings_int=f"{'1' if data.get('AutoRemove') else '0'}{select.values[0]}",
                                                raito_float=self.data.get("Ratio"))
             raw_data = {"AutoRemove": data.get("AutoRemove"), "ManualRemove": bool(int(select.values[0])), "Value": f"{'1' if data.get('AutoRemove') else '0'}{select.values[0]}", "Ratio": data.get("Ratio")}
-
-        self.data = raw_data
         embed = discord.Embed(title="設定", description=f"・自動置換： {'有効' if raw_data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if raw_data.get('ManualRemove')  else '無効'}\n・置換する画像の白の割合：{raw_data.get('Ratio')}")
         await interaction.response.edit_message(embed=embed)
 
     @discord.ui.button(label="白色の割合", style=discord.ButtonStyle.primary, custom_id="ratioButton")
     async def button_ratio(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = ModalRatio(data=self.data, embed=interaction.message.embeds[0])
+        modal = ModalRatio(data=self.data)
+        await interaction.response.send_modal(modal=modal)
         await interaction.response.send_modal(modal)
-        data = await self.db.get_guild_setting(interaction.guild.id)
-        if not data:
-            await self.db.add_guild_setting(interaction.guild.id,
-                                            settings_int=self.data.get("Value"),
-                                            raito_float=modal.name,
-                                            auto_remove=self.data.get("AutoRemove"),
-                                            manual_remove=self.data.get("ManualRemove"))
-            raw_data = {"AutoRemove": self.data.get("AutoRemove"), "ManualRemove": self.data.get("ManualRemove"), "Value": self.data.get("Value"), "Ratio": modal.name}
-        else:
-            await self.db.update_guild_setting(interaction.guild.id,
-                                               settings_int=data.get("Value"),
-                                               raito_float=modal.name)
-            raw_data = {"AutoRemove": data.get("AutoRemove"), "ManualRemove": data.get("ManualRemove"), "Value": data.get("Value"), "Ratio": modal.name}
-        self.data = raw_data
-        print(raw_data)
+        self.stop()
 
 
 class ModalRatio(discord.ui.Modal, title='白色の割合'):
-    def __init__(self, data, embed, *args, **kwargs):
+    def __init__(self, data, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.timeout = 120
         self.data = data
-        self.embed = embed
 
     name = discord.ui.TextInput(label='割合(0.00 ~ 1.00)')
+    answer = discord.ui.TextInput(label='Answer', style=discord.TextStyle.short)
 
     async def on_submit(self, interaction: discord.Interaction):
-        embed = self.embed
-        embed.description = f"・自動置換： {'有効' if self.data.get('AutoRemove') else '無効'}\n・手動置換：{'有効' if self.data.get('ManualRemove')  else '無効'}\n・置換する画像の白の割合：{self.name}"
-        await interaction.response.edit_message(embed=embed)
+        await interaction.response.edit_message(f'Thanks for your response, {self.name}!')
 
 
 async def setup(bot):
